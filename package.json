@@ -1,0 +1,30 @@
+{
+  "name": "docker-service-update",
+  "version": "1.0.0",
+  "description": "Update docker swarm services",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firstandthird/docker-service-update.git"
+  },
+  "keywords": [
+    "docker",
+    "swarm"
+  ],
+  "author": "First and Third",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/firstandthird/docker-service-update/issues"
+  },
+  "homepage": "https://github.com/firstandthird/docker-service-update#readme",
+  "dependencies": {
+    "aug": "^2.0.0",
+    "dockerode": "^2.5.3"
+  }
+}
