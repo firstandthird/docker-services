@@ -37,9 +37,15 @@ module.exports = async function(obj) {
   const newSpec = {
     version: serviceDetails.Version.Index,
     TaskTemplate: {
+      ContainerSpec: {},
       ForceUpdate: 1
     }
   }
+
+  if (obj.image) {
+    newSpec.TaskTemplate.ContainerSpec.Image = obj.image;
+  }
+
   if (obj.labels) {
     newSpec.Labels = obj.labels
   }
