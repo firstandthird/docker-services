@@ -30,9 +30,22 @@ module.exports = async function(obj) {
     throw new Error('serviceName required');
   }
 
-  const service = await client.getService(obj.fromService || obj.serviceName);
+  const service = await client.getService(obj.serviceName);
 
-  const serviceDetails = await service.inspect();
+  //see if the main service already exists, if it doesn't, check the fromService to clone from another service
+  let update = true;
+  let serviceDetails;
+  try {
+    serviceDetails = await service.inspect();
+  } catch (e) {
+    //service doesn't exist, see if fromService set to clone from that task
+    if (!obj.fromService) {
+      throw e;
+    }
+    update = false;
+    const cloneService = await client.getService(obj.fromService);
+    serviceDetails = await cloneService.inspect();
+  }
 
   const newSpec = {
     version: serviceDetails.Version.Index,
@@ -78,9 +91,16 @@ module.exports = async function(obj) {
 
   newService.TaskTemplate.ContainerSpec.Env = objToArr(specEnv);
 
-  const res = await service.update(obj.auth, newService);
+  let res;
+  if (update) {
+    res = await service.update(obj.auth, newService);
+  } else {
+    delete newService.version;
+    newService.Name = obj.serviceName;
+    res = await client.createService(obj.auth, newService);
+  }
 
-  return res;
+  return { serviceSpec: newService, response: res };
 
 }
 
