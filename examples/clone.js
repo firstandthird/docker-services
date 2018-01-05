@@ -15,7 +15,8 @@ const main = async function() {
       labels:{
         'service-update': new Date().getTime().toString(),
         clonedFrom: fromService
-      }
+      },
+      detach: true
     });
     console.log(out);
   } catch (e) {

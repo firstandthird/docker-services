@@ -1,6 +1,9 @@
 const Docker = require('dockerode');
 const aug = require('aug');
 
+const Logr = require('logr');
+const logr = new Logr();
+
 const arrToObj = function(arr) {
   const obj = {};
   arr.forEach(kvp => {
@@ -29,6 +32,23 @@ module.exports = async function(obj) {
   if (!obj.serviceName) {
     throw new Error('serviceName required');
   }
+
+
+  const queryTasks = async function(serviceName) {
+    const opts = {
+      filters: `{"service": [ "${serviceName}" ] }`
+    }
+
+    const tasks = await client.listTasks(opts);
+    if (tasks[0].Status.State !== 'running' && tasks[0].Status.State !== 'failed') {
+      return setTimeout(() => {
+        queryTasks(serviceName);
+      }, 500);
+    }
+    const state = (tasks[0].Status.State === 'running') ? 'debug' : 'error';
+    logr.log([state], `Service ${serviceName} is ${tasks[0].Status.State}`);
+  }
+
 
   const service = await client.getService(obj.serviceName);
 
@@ -98,6 +118,10 @@ module.exports = async function(obj) {
     delete newService.version;
     newService.Name = obj.serviceName;
     res = await client.createService(obj.auth, newService);
+  }
+
+  if (obj.detach) {
+    queryTasks(obj.serviceName);
   }
 
   return { serviceSpec: newService, response: res };

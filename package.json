@@ -25,6 +25,7 @@
   "homepage": "https://github.com/firstandthird/docker-service-update#readme",
   "dependencies": {
     "aug": "^2.0.0",
-    "dockerode": "^2.5.3"
+    "dockerode": "^2.5.3",
+    "logr": "^2.7.0"
   }
 }
