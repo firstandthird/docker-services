@@ -26,7 +26,7 @@ module.exports = async function(obj) {
 
   const client = obj.docker || new Docker();
 
-  const serviceCache = { exists: [], new: [] };
+  const serviceCache = { exists: [] };
 
   if (!obj.serviceName) {
     throw new Error('serviceName required');
