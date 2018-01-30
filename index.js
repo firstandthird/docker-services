@@ -1,9 +1,6 @@
 const Docker = require('dockerode');
 const aug = require('aug');
 
-const Logr = require('logr');
-const logr = new Logr();
-
 const arrToObj = function(arr) {
   const obj = {};
   arr.forEach(kvp => {
@@ -29,26 +26,63 @@ module.exports = async function(obj) {
 
   const client = obj.docker || new Docker();
 
+  const serviceCache = { exists: [], new: [] };
+
   if (!obj.serviceName) {
     throw new Error('serviceName required');
   }
 
-
-  const queryTasks = async function(serviceName) {
+  const listTasks = async function(serviceName) {
     const opts = {
       filters: `{"service": [ "${serviceName}" ] }`
     }
-
     const tasks = await client.listTasks(opts);
-    if (tasks[0].Status.State !== 'running' && tasks[0].Status.State !== 'failed') {
-      return setTimeout(() => {
-        queryTasks(serviceName);
-      }, 500);
-    }
-    const state = (tasks[0].Status.State === 'running') ? 'debug' : 'error';
-    logr.log([state], `Service ${serviceName} is ${tasks[0].Status.State}`);
+
+    return tasks.reduce((result, task) => {
+      result.push(task.ID)
+      return result;
+    }, []);
   }
 
+  const queryTasks = function(serviceName) {
+    const doQuery = async function(nm, resolution) {
+      const opts = {
+        filters: `{"service": [ "${nm}" ] }`
+      }
+
+      const tasks = await client.listTasks(opts);
+      let finished = true;
+      tasks.forEach(tsk => {
+        if (!serviceCache.exists.includes(tsk.ID)) {
+          if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
+            throw new Error(`${tsk.ID} returned status ${tsk.Status.State}`);
+          }
+          if (tsk.Status.State !== 'running') {
+            finished = false;
+          }
+        }
+      });
+
+      if (finished) {
+        resolution('Tasks Complete');
+        return;
+      }
+
+      setTimeout(() => {
+        doQuery(nm, resolution);
+      }, 500);
+    };
+
+    return new Promise(async (resolve) => {
+      setTimeout(() => {
+        doQuery(serviceName, resolve);
+      }, 500);
+    });
+  }
+
+  const now = new Date();
+  console.log(`Starting [${now}]`);
+  const tag = Math.random().toString(36).substring(7);
 
   const service = await client.getService(obj.serviceName);
 
@@ -80,9 +114,9 @@ module.exports = async function(obj) {
   }
 
   if (obj.labels) {
-    newSpec.Labels = obj.labels
+    newSpec.Labels = obj.labels;
   }
-
+  
   if (obj.scale) {
     newSpec.Mode = {
       Replicated: {
@@ -100,16 +134,35 @@ module.exports = async function(obj) {
   }
 
   const newService = aug(serviceDetails.Spec, newSpec);
-
+    
   let specEnv = {};
   if (newService.TaskTemplate.ContainerSpec.Env) {
     specEnv = arrToObj(newService.TaskTemplate.ContainerSpec.Env);
   }
+
   if (obj.environment) {
     specEnv = aug(specEnv, obj.environment);
   }
 
   newService.TaskTemplate.ContainerSpec.Env = objToArr(specEnv);
+
+  // Detach -- start
+  if (obj.detach && update) {
+    serviceCache.exists  = await listTasks(obj.serviceName);
+    // Check if we are scaling down.
+    if (newSpec.Mode && newSpec.Mode.Replicated && newSpec.Mode.Replicated.Replicas) {
+      const newScale = newSpec.Mode.Replicated.Replicas;
+      let oldScale = 0;
+      if (serviceDetails.Spec.Mode.Replicated && serviceDetails.Spec.Mode.Replicated.Replicas) {
+        oldScale = serviceDetails.Spec.Mode.Replicated.Replicas;
+      }
+
+      if (newScale < oldScale) {
+        // Need to track tasks as they shutdown.
+        delete obj.detach;
+      }
+    }
+  }
 
   let res;
   if (update) {
@@ -121,10 +174,9 @@ module.exports = async function(obj) {
   }
 
   if (obj.detach) {
-    queryTasks(obj.serviceName);
+    result = await queryTasks(obj.serviceName);
   }
 
   return { serviceSpec: newService, response: res };
-
 }
 

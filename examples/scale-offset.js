@@ -6,8 +6,9 @@ const main = async function() {
 
   const out = await serviceUpdate({
     serviceName,
-    scaleOffset: scale
+    scaleOffset: scale,
+    detach: true
   });
-  console.log(out);
+  // console.log(out);
 }
 main();
