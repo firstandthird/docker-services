@@ -10,7 +10,7 @@ const arrToObj = function(arr) {
   });
 
   return obj;
-}
+};
 
 const objToArr = function(obj) {
   const arr = [];
@@ -20,10 +20,9 @@ const objToArr = function(obj) {
   });
 
   return arr;
-}
+};
 
 module.exports = async function(obj) {
-
   const client = obj.docker || new Docker();
 
   const serviceCache = { exists: [] };
@@ -35,20 +34,20 @@ module.exports = async function(obj) {
   const listTasks = async function(serviceName) {
     const opts = {
       filters: `{"service": [ "${serviceName}" ] }`
-    }
+    };
     const tasks = await client.listTasks(opts);
 
     return tasks.reduce((result, task) => {
-      result.push(task.ID)
+      result.push(task.ID);
       return result;
     }, []);
-  }
+  };
 
   const queryTasks = function(serviceName) {
     const doQuery = async function(nm, resolution) {
       const opts = {
         filters: `{"service": [ "${nm}" ] }`
-      }
+      };
 
       const tasks = await client.listTasks(opts);
       let finished = true;
@@ -78,11 +77,7 @@ module.exports = async function(obj) {
         doQuery(serviceName, resolve);
       }, 500);
     });
-  }
-
-  const now = new Date();
-  console.log(`Starting [${now}]`);
-  const tag = Math.random().toString(36).substring(7);
+  };
 
   const service = await client.getService(obj.serviceName);
 
@@ -107,7 +102,7 @@ module.exports = async function(obj) {
       ContainerSpec: {},
       ForceUpdate: 1
     }
-  }
+  };
 
   if (obj.image) {
     newSpec.TaskTemplate.ContainerSpec.Image = obj.image;
@@ -116,13 +111,13 @@ module.exports = async function(obj) {
   if (obj.labels) {
     newSpec.Labels = obj.labels;
   }
-  
+
   if (obj.scale) {
     newSpec.Mode = {
       Replicated: {
         Replicas: obj.scale
       }
-    }
+    };
   }
 
   if (obj.scaleOffset) {
@@ -130,11 +125,11 @@ module.exports = async function(obj) {
       Replicated: {
         Replicas: serviceDetails.Spec.Mode.Replicated.Replicas += obj.scaleOffset
       }
-    }
+    };
   }
 
   const newService = aug(serviceDetails.Spec, newSpec);
-    
+
   let specEnv = {};
   if (newService.TaskTemplate.ContainerSpec.Env) {
     specEnv = arrToObj(newService.TaskTemplate.ContainerSpec.Env);
@@ -178,5 +173,5 @@ module.exports = async function(obj) {
   }
 
   return { serviceSpec: newService, response: res };
-}
+};
 
