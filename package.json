@@ -26,5 +26,13 @@
   "dependencies": {
     "aug": "^2.0.0",
     "dockerode": "^2.5.3"
+  },
+  "devDependencies": {
+    "eslint": "^4.17.0",
+    "eslint-config-firstandthird": "^4.3.0",
+    "eslint-plugin-import": "^2.8.0"
+  },
+  "eslintConfig": {
+    "extends": "firstandthird"
   }
 }
