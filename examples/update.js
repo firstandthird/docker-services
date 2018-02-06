@@ -12,7 +12,7 @@ const main = async function() {
       'blergh': 'blagh',
       'service-update': new Date().getTime().toString()
     },
-    detach: true
+    detach: false
   });
   console.log('DONE!');
   // console.log('OUT! ', out);

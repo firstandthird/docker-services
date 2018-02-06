@@ -1,5 +1,7 @@
 const Docker = require('dockerode');
 const aug = require('aug');
+const util = require('util');
+const wait = util.promisify(setTimeout);
 
 const arrToObj = function(arr) {
   const obj = {};
@@ -39,47 +41,33 @@ module.exports = async function(obj) {
       filters: `{"service": [ "${serviceName}" ] }`
     };
     const tasks = await client.listTasks(opts);
-
-    return tasks.reduce((result, task) => {
-      result.push(task.ID);
-      return result;
-    }, []);
+    return tasks.map(t => t.ID);
   };
 
-  const queryTasks = function(serviceName) {
-    const doQuery = async function(nm, resolution) {
-      const opts = {
-        filters: `{"service": [ "${nm}" ] }`
-      };
-
-      const tasks = await client.listTasks(opts);
-      let finished = true;
-      tasks.forEach(tsk => {
-        if (!serviceCache.exists.includes(tsk.ID)) {
-          if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
-            throw new Error(`${tsk.ID} returned status ${tsk.Status.State}`);
-          }
-          if (tsk.Status.State !== 'running') {
-            finished = false;
-          }
-        }
-      });
-
-      if (finished) {
-        resolution('Tasks Complete');
-        return;
-      }
-
-      setTimeout(() => {
-        doQuery(nm, resolution);
-      }, 500);
+  const queryTasks = async function(serviceName) {
+    const opts = {
+      filters: `{"service": [ "${serviceName}" ] }`
     };
 
-    return new Promise(async (resolve) => {
-      setTimeout(() => {
-        doQuery(serviceName, resolve);
-      }, 500);
+    const tasks = await client.listTasks(opts);
+    let finished = true;
+    tasks.forEach(tsk => {
+      if (!serviceCache.exists.includes(tsk.ID)) {
+        if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
+          throw new Error(`${tsk.ID} returned status ${tsk.Status.State}`);
+        }
+        if (tsk.Status.State !== 'running') {
+          finished = false;
+        }
+      }
     });
+
+    if (finished) {
+      return;
+    }
+
+    await wait(500);
+    await queryTasks(serviceName);
   };
 
   const service = await client.getService(obj.serviceName);
@@ -172,7 +160,7 @@ module.exports = async function(obj) {
   }
 
   if (!obj.detach) {
-    res = await queryTasks(obj.serviceName);
+    await queryTasks(obj.serviceName);
   }
 
   return { serviceSpec: newService, response: res };
