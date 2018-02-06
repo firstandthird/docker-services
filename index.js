@@ -30,6 +30,9 @@ module.exports = async function(obj) {
   if (!obj.serviceName) {
     throw new Error('serviceName required');
   }
+  if (typeof obj.detach === 'undefined') {
+    obj.detach = false;
+  }
 
   const listTasks = async function(serviceName) {
     const opts = {
@@ -142,8 +145,8 @@ module.exports = async function(obj) {
   newService.TaskTemplate.ContainerSpec.Env = objToArr(specEnv);
 
   // Detach -- start
-  if (obj.detach && update) {
-    serviceCache.exists  = await listTasks(obj.serviceName);
+  if (!obj.detach && update) {
+    serviceCache.exists = await listTasks(obj.serviceName);
     // Check if we are scaling down.
     if (newSpec.Mode && newSpec.Mode.Replicated && newSpec.Mode.Replicated.Replicas) {
       const newScale = newSpec.Mode.Replicated.Replicas;
@@ -168,8 +171,8 @@ module.exports = async function(obj) {
     res = await client.createService(obj.auth, newService);
   }
 
-  if (obj.detach) {
-    result = await queryTasks(obj.serviceName);
+  if (!obj.detach) {
+    res = await queryTasks(obj.serviceName);
   }
 
   return { serviceSpec: newService, response: res };
