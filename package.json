@@ -1,17 +1,17 @@
 {
-  "name": "docker-service-update",
+  "name": "@firstandthird/docker-services",
   "version": "2.0.0",
-  "description": "Update docker swarm services",
+  "description": "Manage docker services",
   "main": "index.js",
   "directories": {
     "example": "examples"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tap --cov --bail test"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/firstandthird/docker-service-update.git"
+    "url": "git+https://github.com/firstandthird/docker-services.git"
   },
   "keywords": [
     "docker",
@@ -20,17 +20,19 @@
   "author": "First and Third",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/firstandthird/docker-service-update/issues"
+    "url": "https://github.com/firstandthird/docker-services/issues"
   },
-  "homepage": "https://github.com/firstandthird/docker-service-update#readme",
+  "homepage": "https://github.com/firstandthird/docker-services#readme",
   "dependencies": {
     "aug": "^2.0.0",
-    "dockerode": "^2.5.3"
+    "dockerode": "^2.5.3",
+    "joi": "^13.1.2"
   },
   "devDependencies": {
     "eslint": "^4.17.0",
     "eslint-config-firstandthird": "^4.3.0",
-    "eslint-plugin-import": "^2.8.0"
+    "eslint-plugin-import": "^2.8.0",
+    "tap": "^11.1.1"
   },
   "eslintConfig": {
     "extends": "firstandthird"

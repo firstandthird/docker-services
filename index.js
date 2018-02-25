@@ -1,58 +1,113 @@
+const Joi = require('joi');
 const Docker = require('dockerode');
-const aug = require('aug');
+const auth = require('./lib/auth');
 const util = require('util');
 const wait = util.promisify(setTimeout);
+const utils = require('./lib/utils');
+const aug = require('aug');
 
-const arrToObj = function(arr) {
-  const obj = {};
-  arr.forEach(kvp => {
-    const kvArr = kvp.split('=');
-    const kvar = kvArr.shift();
-    obj[kvar] = kvArr.join('=');
-  });
-
-  return obj;
-};
-
-const objToArr = function(obj) {
-  const arr = [];
-  Object.keys(obj).forEach(key => {
-    const str = `${key}=${obj[key]}`;
-    arr.push(str);
-  });
-
-  return arr;
-};
-
-module.exports = async function(obj) {
-  const client = obj.docker || new Docker();
-
-  const serviceCache = { exists: [] };
-
-  if (!obj.serviceName) {
-    throw new Error('serviceName required');
-  }
-  if (typeof obj.detach === 'undefined') {
-    obj.detach = false;
+class DockerServices {
+  constructor(options = {}) {
+    this.dockerClient = options.dockerClient || new Docker();
+    this.auth = options.auth || auth();
   }
 
-  const listTasks = async function(serviceName) {
-    const opts = {
-      filters: `{"service": [ "${serviceName}" ] }`
-    };
-    const tasks = await client.listTasks(opts);
-    return tasks.map(t => t.ID);
-  };
+  async get(name) {
+    const service = await this.dockerClient.getService(name);
+    return service.inspect();
+  }
 
-  const queryTasks = async function(serviceName) {
-    const opts = {
-      filters: `{"service": [ "${serviceName}" ] }`
-    };
+  async exists(name) {
+    try {
+      await this.get(name);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
-    const tasks = await client.listTasks(opts);
+  async create(spec, detach = false) {
+    await this.dockerClient.createService(this.auth, spec);
+    if (!detach) {
+      await this.waitUntilRunning(spec.Name, []);
+    }
+  }
+
+  async update(spec) {
+    const name = spec.Name;
+    const [existingTasks, originalSpec] = await Promise.all([
+      this.getTasks(name),
+      this.get(name)
+    ]);
+    const existing = existingTasks.map(t => t.ID);
+    const service = await this.dockerClient.getService(name);
+    spec.version = originalSpec.Version.Index;
+    await service.update(spec);
+    return this.waitUntilRunning(name, existing);
+  }
+
+  async adjust(name, options) {
+    const validate = Joi.validate(options, {
+      image: Joi.string().optional(),
+      env: Joi.object(),
+      envRemove: Joi.array(),
+      labels: Joi.object(),
+      labelRemove: Joi.array()
+    });
+    if (validate.error) {
+      throw validate.error;
+    }
+    const [existingTasks, serviceSpec] = await Promise.all([
+      this.getTasks(name),
+      this.get(name)
+    ]);
+    const existing = existingTasks.map(t => t.ID);
+    const spec = serviceSpec.Spec;
+    spec.version = serviceSpec.Version.Index;
+
+    if (options.image) {
+      spec.TaskTemplate.Image = options.image;
+    }
+
+    if (options.env || options.envRemove) {
+      const env = utils.arrToObj(spec.TaskTemplate.ContainerSpec.Env || []);
+      const merged = aug(env, options.env);
+      if (options.envRemove) {
+        options.envRemove.forEach((e) => delete merged[e]);
+      }
+      spec.TaskTemplate.ContainerSpec.Env = utils.objToArr(merged);
+    }
+
+    if (options.labels || options.labelRemove) {
+      const merged = aug(spec.TaskTemplate.ContainerSpec.Labels, options.labels || {});
+      if (options.labelRemove) {
+        options.labelRemove.forEach((l) => delete merged[l]);
+      }
+      spec.TaskTemplate.ContainerSpec.Labels = merged;
+    }
+
+    const service = await this.dockerClient.getService(name);
+    await service.update(this.auth, spec);
+    return this.waitUntilRunning(name, existing);
+  }
+
+  async remove(name) {
+    const service = await this.dockerClient.getService(name);
+    return service.remove();
+  }
+
+  getTasks(name) {
+    const opts = {
+      filters: `{"service": [ "${name}" ] }`
+    };
+    return this.dockerClient.listTasks(opts);
+  }
+
+  async waitUntilRunning(name, existing) {
+    const tasks = await this.getTasks(name);
     let finished = true;
     tasks.forEach(tsk => {
-      if (!serviceCache.exists.includes(tsk.ID)) {
+      if (!existing.includes(tsk.ID)) {
         if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
           throw new Error(`${tsk.ID} returned status ${tsk.Status.State}`);
         }
@@ -66,103 +121,9 @@ module.exports = async function(obj) {
       return;
     }
 
-    await wait(500);
-    await queryTasks(serviceName);
-  };
-
-  const service = await client.getService(obj.serviceName);
-
-  //see if the main service already exists, if it doesn't, check the fromService to clone from another service
-  let update = true;
-  let serviceDetails;
-  try {
-    serviceDetails = await service.inspect();
-  } catch (e) {
-    //service doesn't exist, see if fromService set to clone from that task
-    if (!obj.fromService) {
-      throw e;
-    }
-    update = false;
-    const cloneService = await client.getService(obj.fromService);
-    serviceDetails = await cloneService.inspect();
+    await wait(200);
+    return this.waitUntilRunning(name, existing);
   }
+}
 
-  const newSpec = {
-    version: serviceDetails.Version.Index,
-    TaskTemplate: {
-      ContainerSpec: {},
-      ForceUpdate: 1
-    }
-  };
-
-  if (obj.image) {
-    newSpec.TaskTemplate.ContainerSpec.Image = obj.image;
-  }
-
-  if (obj.labels) {
-    newSpec.Labels = obj.labels;
-  }
-
-  if (obj.scale) {
-    newSpec.Mode = {
-      Replicated: {
-        Replicas: obj.scale
-      }
-    };
-  }
-
-  if (obj.scaleOffset) {
-    newSpec.Mode = {
-      Replicated: {
-        Replicas: serviceDetails.Spec.Mode.Replicated.Replicas += obj.scaleOffset
-      }
-    };
-  }
-
-  const newService = aug(serviceDetails.Spec, newSpec);
-
-  let specEnv = {};
-  if (newService.TaskTemplate.ContainerSpec.Env) {
-    specEnv = arrToObj(newService.TaskTemplate.ContainerSpec.Env);
-  }
-
-  if (obj.environment) {
-    specEnv = aug(specEnv, obj.environment);
-  }
-
-  newService.TaskTemplate.ContainerSpec.Env = objToArr(specEnv);
-
-  // Detach -- start
-  if (!obj.detach && update) {
-    serviceCache.exists = await listTasks(obj.serviceName);
-    // Check if we are scaling down.
-    if (newSpec.Mode && newSpec.Mode.Replicated && newSpec.Mode.Replicated.Replicas) {
-      const newScale = newSpec.Mode.Replicated.Replicas;
-      let oldScale = 0;
-      if (serviceDetails.Spec.Mode.Replicated && serviceDetails.Spec.Mode.Replicated.Replicas) {
-        oldScale = serviceDetails.Spec.Mode.Replicated.Replicas;
-      }
-
-      if (newScale < oldScale) {
-        // Need to track tasks as they shutdown.
-        delete obj.detach;
-      }
-    }
-  }
-
-  let res;
-  if (update) {
-    res = await service.update(obj.auth, newService);
-  } else {
-    delete newService.version;
-    newService.Name = obj.serviceName;
-    res = await client.createService(obj.auth, newService);
-  }
-
-  if (!obj.detach) {
-    await queryTasks(obj.serviceName);
-  }
-
-  return { serviceSpec: newService, response: res };
-};
-
+module.exports = DockerServices;
