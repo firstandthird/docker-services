@@ -52,7 +52,8 @@ class DockerServices {
       env: Joi.object(),
       envRemove: Joi.array(),
       labels: Joi.object(),
-      labelRemove: Joi.array()
+      labelRemove: Joi.array(),
+      force: Joi.boolean()
     });
     if (validate.error) {
       throw validate.error;
@@ -84,6 +85,10 @@ class DockerServices {
         options.labelRemove.forEach((l) => delete merged[l]);
       }
       spec.TaskTemplate.ContainerSpec.Labels = merged;
+    }
+
+    if (options.force) {
+      spec.TaskTemplate.ForceUpdate = 1;
     }
 
     const service = await this.dockerClient.getService(name);
