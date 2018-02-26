@@ -118,7 +118,7 @@ tap.test('adjust service if no env or labels', async (t) => {
   t.end();
 });
 
-tap.test('force: 1', async (t) => {
+tap.test('force: true', async (t) => {
   const services = new Services();
   const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
   await services.create({
@@ -143,6 +143,43 @@ tap.test('force: 1', async (t) => {
         Image: 'firstandthird/ops',
       },
       ForceUpdate: 1,
+      Runtime: 'container'
+    },
+    Mode: {
+      Replicated: {
+        Replicas: 1
+      }
+    }
+  });
+  t.end();
+});
+
+tap.test('force: true if already forced', async (t) => {
+  const services = new Services();
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  await services.create({
+    Name: name,
+    TaskTemplate: {
+      ContainerSpec: {
+        Image: 'firstandthird/ops'
+      },
+      ForceUpdate: 1
+    }
+  });
+  await services.adjust(name, {
+    image: 'firstandthird/ops:0.7.0',
+    force: true
+  });
+  const service = await services.get(name);
+  await services.remove(name);
+  t.deepEquals(service.Spec, {
+    Name: name,
+    Labels: {},
+    TaskTemplate: {
+      ContainerSpec: {
+        Image: 'firstandthird/ops',
+      },
+      ForceUpdate: 2,
       Runtime: 'container'
     },
     Mode: {

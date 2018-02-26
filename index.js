@@ -88,7 +88,8 @@ class DockerServices {
     }
 
     if (options.force) {
-      spec.TaskTemplate.ForceUpdate = 1;
+      const updateCount = serviceSpec.Spec.TaskTemplate.ForceUpdate || 0;
+      spec.TaskTemplate.ForceUpdate = updateCount + 1;
     }
 
     const service = await this.dockerClient.getService(name);
