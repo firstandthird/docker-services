@@ -57,3 +57,43 @@ tap.test('create service with object', async (t) => {
   t.end();
 });
 
+tap.test('throw if takes too long', async (t) => {
+  let error = false;
+  const services = new Services();
+  services.maxWaitTimes = 0;
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  try {
+    await services.create({
+      Name: name,
+      TaskTemplate: {
+        ContainerSpec: {
+          Image: 'sgfforg/dummy-app:latest',
+          Env: [
+            'PORT=8080',
+            'NODE_ENV=production'
+          ],
+          Labels: {
+            test: 'true'
+          },
+          EndpointSpec: {
+            Ports: {
+              TargetPort: 8080
+            }
+          },
+          Mode: {
+            Replicated: {
+              Replicas: 3
+            }
+          }
+        }
+      }
+    });
+  } catch (e) {
+    error = true;
+    t.notEqual(e, null);
+    await services.remove(name);
+  }
+  t.equals(error, true);
+  t.end();
+});
+

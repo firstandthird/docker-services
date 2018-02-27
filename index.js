@@ -10,6 +10,8 @@ class DockerServices {
   constructor(options = {}) {
     this.dockerClient = options.dockerClient || new Docker();
     this.auth = options.auth || auth();
+    this.maxWaitTimes = 20;
+    this.waitDelay = 500;
   }
 
   async get(name) {
@@ -109,7 +111,7 @@ class DockerServices {
     return this.dockerClient.listTasks(opts);
   }
 
-  async waitUntilRunning(name, existing) {
+  async waitUntilRunning(name, existing, times = 0) {
     const tasks = await this.getTasks(name);
     let finished = true;
     tasks.forEach(tsk => {
@@ -127,8 +129,12 @@ class DockerServices {
       return;
     }
 
-    await wait(200);
-    return this.waitUntilRunning(name, existing);
+    if (times > this.maxWaitTimes) {
+      throw new Error('service timed out');
+    }
+
+    await wait(this.waitDelay);
+    return this.waitUntilRunning(name, existing, ++times);
   }
 }
 
