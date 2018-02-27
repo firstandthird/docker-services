@@ -49,7 +49,7 @@ tap.test('adjust service', async (t) => {
     Labels: {},
     TaskTemplate: {
       ContainerSpec: {
-        Image: 'firstandthird/ops',
+        Image: 'firstandthird/ops:0.7.0',
         Env: [
           'PORT=8081',
           'NEWENV=2'
@@ -98,7 +98,7 @@ tap.test('adjust service if no env or labels', async (t) => {
     Labels: {},
     TaskTemplate: {
       ContainerSpec: {
-        Image: 'firstandthird/ops',
+        Image: 'firstandthird/ops:0.7.0',
         Env: [
           'PORT=8081'
         ],
@@ -140,7 +140,7 @@ tap.test('force: true', async (t) => {
     Labels: {},
     TaskTemplate: {
       ContainerSpec: {
-        Image: 'firstandthird/ops',
+        Image: 'firstandthird/ops:0.7.0',
       },
       ForceUpdate: 1,
       Runtime: 'container'
@@ -177,7 +177,7 @@ tap.test('force: true if already forced', async (t) => {
     Labels: {},
     TaskTemplate: {
       ContainerSpec: {
-        Image: 'firstandthird/ops',
+        Image: 'firstandthird/ops:0.7.0',
       },
       ForceUpdate: 2,
       Runtime: 'container'

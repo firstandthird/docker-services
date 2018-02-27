@@ -49,6 +49,21 @@ class DockerServices {
   }
 
   async adjust(name, options) {
+    const [existingTasks, serviceSpec] = await Promise.all([
+      this.getTasks(name),
+      this.get(name)
+    ]);
+    const existing = existingTasks.map(t => t.ID);
+    const spec = serviceSpec.Spec;
+    spec.version = serviceSpec.Version.Index;
+    const newSpec = this.adjustSpec(spec, options);
+
+    const service = await this.dockerClient.getService(name);
+    await service.update(this.auth, newSpec);
+    return this.waitUntilRunning(name, existing);
+  }
+
+  adjustSpec(spec, options) {
     const validate = Joi.validate(options, {
       image: Joi.string().optional(),
       env: Joi.object(),
@@ -60,16 +75,9 @@ class DockerServices {
     if (validate.error) {
       throw validate.error;
     }
-    const [existingTasks, serviceSpec] = await Promise.all([
-      this.getTasks(name),
-      this.get(name)
-    ]);
-    const existing = existingTasks.map(t => t.ID);
-    const spec = serviceSpec.Spec;
-    spec.version = serviceSpec.Version.Index;
 
     if (options.image) {
-      spec.TaskTemplate.Image = options.image;
+      spec.TaskTemplate.ContainerSpec.Image = options.image;
     }
 
     if (options.env || options.envRemove) {
@@ -90,13 +98,10 @@ class DockerServices {
     }
 
     if (options.force) {
-      const updateCount = serviceSpec.Spec.TaskTemplate.ForceUpdate || 0;
+      const updateCount = spec.TaskTemplate.ForceUpdate || 0;
       spec.TaskTemplate.ForceUpdate = updateCount + 1;
     }
-
-    const service = await this.dockerClient.getService(name);
-    await service.update(this.auth, spec);
-    return this.waitUntilRunning(name, existing);
+    return spec;
   }
 
   async remove(name) {
