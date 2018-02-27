@@ -8,7 +8,7 @@ tap.test('create service with object', async (t) => {
     Name: name,
     TaskTemplate: {
       ContainerSpec: {
-        Image: 'sgfforg/dummy-app:latest',
+        Image: 'firstandthird/ops:latest',
         Env: [
           'PORT=8080',
           'NODE_ENV=production'
@@ -35,7 +35,7 @@ tap.test('create service with object', async (t) => {
     Labels: {},
     TaskTemplate: {
       ContainerSpec: {
-        Image: 'sgfforg/dummy-app:latest',
+        Image: 'firstandthird/ops:latest',
         Labels: {
           test: 'true'
         },
@@ -67,7 +67,7 @@ tap.test('throw if takes too long', async (t) => {
       Name: name,
       TaskTemplate: {
         ContainerSpec: {
-          Image: 'sgfforg/dummy-app:latest',
+          Image: 'firstandthird/ops:latest',
           Env: [
             'PORT=8080',
             'NODE_ENV=production'
@@ -91,6 +91,56 @@ tap.test('throw if takes too long', async (t) => {
   } catch (e) {
     error = true;
     t.notEqual(e, null);
+    await services.remove(name);
+  }
+  t.equals(error, true);
+  t.end();
+});
+
+
+tap.test('throw if failed', async (t) => {
+  let error = false;
+  const services = new Services();
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  try {
+    await services.create({
+      Name: name,
+      TaskTemplate: {
+        ContainerSpec: {
+          Image: 'alpine',
+          Args: [
+            'exit 1'
+          ]
+        }
+      }
+    });
+  } catch (e) {
+    error = true;
+    t.notEqual(e, null);
+    t.contains(e.message, 'returned status failed');
+    await services.remove(name);
+  }
+  t.equals(error, true);
+  t.end();
+});
+
+tap.test('throw if invalid image', async (t) => {
+  let error = false;
+  const services = new Services();
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  try {
+    await services.create({
+      Name: name,
+      TaskTemplate: {
+        ContainerSpec: {
+          Image: 'alpineasdfasdf'
+        }
+      }
+    });
+  } catch (e) {
+    error = true;
+    t.notEqual(e, null);
+    t.contains(e.message, 'returned status rejected');
     await services.remove(name);
   }
   t.equals(error, true);
