@@ -1,7 +1,7 @@
 const tap = require('tap');
 const Services = require('../');
 
-tap.test('adjust service', async (t) => {
+tap.test('adjust service', (t) => {
   const services = new Services();
   const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
   const spec = {
@@ -65,6 +65,32 @@ tap.test('adjust service', async (t) => {
         Replicas: 1
       }
     }
+  });
+  t.end();
+});
+
+tap.test('remove digest if force', (t) => {
+  const services = new Services();
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  const spec = {
+    Name: name,
+    TaskTemplate: {
+      ContainerSpec: {
+        Image: 'firstandthird/ops@sha256:b545c3b87e515299f6d6245d5f1eebcf1ed30328dca1e218fc9c6cebc75f9918',
+      }
+    }
+  };
+  const newSpec = services.adjustSpec(spec, {
+    force: true
+  });
+  t.deepEquals(newSpec, {
+    Name: name,
+    TaskTemplate: {
+      ContainerSpec: {
+        Image: 'firstandthird/ops',
+      },
+      ForceUpdate: 1
+    },
   });
   t.end();
 });

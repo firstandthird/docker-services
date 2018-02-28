@@ -100,6 +100,7 @@ class DockerServices {
     if (options.force) {
       const updateCount = spec.TaskTemplate.ForceUpdate || 0;
       spec.TaskTemplate.ForceUpdate = updateCount + 1;
+      spec.TaskTemplate.ContainerSpec.Image = spec.TaskTemplate.ContainerSpec.Image.split('@')[0];
     }
     return spec;
   }
