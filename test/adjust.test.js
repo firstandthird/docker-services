@@ -25,7 +25,7 @@ tap.test('adjust service', async (t) => {
       }
     }
   });
-  await services.adjust(name, {
+  const result = await services.adjust(name, {
     image: 'firstandthird/ops:0.7.0',
     env: {
       PORT: 8081,
@@ -44,6 +44,8 @@ tap.test('adjust service', async (t) => {
   });
   const service = await services.get(name);
   await services.remove(name);
+  t.equals(typeof result.service, 'object');
+  t.equals(typeof result.spec, 'object');
   t.deepEquals(service.Spec, {
     Name: name,
     Labels: {},

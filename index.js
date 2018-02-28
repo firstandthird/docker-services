@@ -29,10 +29,11 @@ class DockerServices {
   }
 
   async create(spec, detach = false) {
-    await this.dockerClient.createService(this.auth, spec);
+    const service = await this.dockerClient.createService(this.auth, spec);
     if (!detach) {
       await this.waitUntilRunning(spec.Name, []);
     }
+    return { service, spec };
   }
 
   async update(spec) {
@@ -45,7 +46,8 @@ class DockerServices {
     const service = await this.dockerClient.getService(name);
     spec.version = originalSpec.Version.Index;
     await service.update(spec);
-    return this.waitUntilRunning(name, existing);
+    await this.waitUntilRunning(name, existing);
+    return { service, spec };
   }
 
   async adjust(name, options) {
@@ -60,7 +62,8 @@ class DockerServices {
 
     const service = await this.dockerClient.getService(name);
     await service.update(this.auth, newSpec);
-    return this.waitUntilRunning(name, existing);
+    await this.waitUntilRunning(name, existing);
+    return { service, spec: newSpec };
   }
 
   adjustSpec(spec, options) {

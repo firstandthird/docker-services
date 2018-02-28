@@ -4,7 +4,7 @@ const Services = require('../');
 tap.test('update service', async (t) => {
   const services = new Services();
   const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
-  await services.create({
+  const result = await services.create({
     Name: name,
     TaskTemplate: {
       ContainerSpec: {
@@ -30,6 +30,8 @@ tap.test('update service', async (t) => {
   });
   const service = await services.get(name);
   await services.remove(name);
+  t.equals(typeof result.service, 'object');
+  t.equals(typeof result.spec, 'object');
   t.deepEquals(service.Spec, {
     Name: name,
     Labels: {},

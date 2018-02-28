@@ -1,10 +1,11 @@
 const tap = require('tap');
 const Services = require('../');
+//tap.runOnly = true;
 
 tap.test('create service with object', async (t) => {
   const services = new Services();
   const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
-  await services.create({
+  const result = await services.create({
     Name: name,
     TaskTemplate: {
       ContainerSpec: {
@@ -30,6 +31,11 @@ tap.test('create service with object', async (t) => {
     }
   });
   const service = await services.get(name);
+  await services.remove(name);
+
+  t.equals(typeof result.service, 'object');
+  t.equals(typeof result.spec, 'object');
+
   t.deepEqual(service.Spec, {
     Name: name,
     Labels: {},
@@ -53,7 +59,6 @@ tap.test('create service with object', async (t) => {
       }
     }
   });
-  await services.remove(name);
   t.end();
 });
 
@@ -109,7 +114,7 @@ tap.test('throw if failed', async (t) => {
         ContainerSpec: {
           Image: 'alpine',
           Args: [
-            'exit 1'
+            'asdfasdfasdf'
           ]
         }
       }
