@@ -1,5 +1,6 @@
 const tap = require('tap');
 const Services = require('../');
+//tap.runOnly = true;
 
 tap.test('update service', async (t) => {
   const services = new Services();
@@ -52,4 +53,43 @@ tap.test('update service', async (t) => {
     }
   });
   t.end();
+});
+
+tap.test('update to invalid image', async (t) => {
+  let err = false;
+  const services = new Services();
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  await services.create({
+    Name: name,
+    TaskTemplate: {
+      ContainerSpec: {
+        Image: 'firstandthird/ops'
+      }
+    },
+    Mode: {
+      Replicated: {
+        Replicas: 3
+      }
+    }
+  });
+  try {
+    await services.update({
+      Name: name,
+      TaskTemplate: {
+        ContainerSpec: {
+          Image: 'firstandthird/ops2',
+          Env: [
+            'PORT=8080'
+          ]
+        }
+      }
+    });
+  } catch (e) {
+    err = true;
+    t.notEquals(e, null);
+  } finally {
+    await services.remove(name);
+    t.equals(err, true);
+    t.end();
+  }
 });

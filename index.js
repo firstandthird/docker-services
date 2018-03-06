@@ -10,8 +10,9 @@ class DockerServices {
   constructor(options = {}) {
     this.dockerClient = options.dockerClient || new Docker();
     this.auth = options.auth || auth();
-    this.maxWaitTimes = 20;
     this.waitDelay = 500;
+    const waitTime = 1000 * 60; //1 min
+    this.maxWaitCount = Math.floor(waitTime / this.waitDelay);
   }
 
   async get(name) {
@@ -120,7 +121,7 @@ class DockerServices {
     return this.dockerClient.listTasks(opts);
   }
 
-  async waitUntilRunning(name, existing, times = 0) {
+  async waitUntilRunning(name, existing, times = 0, finalCheck = false) {
     const tasks = await this.getTasks(name);
     let finished = true;
     tasks.forEach(tsk => {
@@ -134,7 +135,7 @@ class DockerServices {
       }
     });
 
-    if (finished) {
+    if (finished && finalCheck) {
       return;
     }
 
@@ -143,7 +144,7 @@ class DockerServices {
     }
 
     await wait(this.waitDelay);
-    return this.waitUntilRunning(name, existing, ++times);
+    return this.waitUntilRunning(name, existing, ++times, finished);
   }
 }
 

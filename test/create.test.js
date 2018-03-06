@@ -102,7 +102,6 @@ tap.test('throw if takes too long', async (t) => {
   t.end();
 });
 
-
 tap.test('throw if failed', async (t) => {
   let error = false;
   const services = new Services();
@@ -138,7 +137,7 @@ tap.test('throw if invalid image', async (t) => {
       Name: name,
       TaskTemplate: {
         ContainerSpec: {
-          Image: 'alpineasdfasdf'
+          Image: 'firstandthird/ops2'
         }
       }
     });
