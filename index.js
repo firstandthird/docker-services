@@ -127,7 +127,8 @@ class DockerServices {
     tasks.forEach(tsk => {
       if (!existing.includes(tsk.ID)) {
         if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
-          throw new Error(`${tsk.ID} returned status ${tsk.Status.State}`);
+          const errMessage = tsk.Status.Err || null;
+          throw new Error(`${tsk.ID} returned status ${tsk.Status.State} with ${errMessage}`);
         }
         if (tsk.Status.State !== 'running') {
           finished = false;
