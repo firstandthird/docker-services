@@ -120,6 +120,44 @@ tap.test('adjust service if no env or labels', async (t) => {
   t.end();
 });
 
+tap.test('adjust service replicas', async (t) => {
+  const services = new Services();
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  await services.create({
+    Name: name,
+    TaskTemplate: {
+      ContainerSpec: {
+        Image: 'firstandthird/ops'
+      }
+    }
+  });
+  await services.adjust(name, {
+    replicas: 2
+  });
+  const service = await services.get(name);
+  await services.remove(name);
+  t.equals(service.Spec.Mode.Replicated.Replicas, 2);
+  t.end();
+});
+
+tap.test('adjust using scale', async (t) => {
+  const services = new Services();
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  await services.create({
+    Name: name,
+    TaskTemplate: {
+      ContainerSpec: {
+        Image: 'firstandthird/ops'
+      }
+    }
+  });
+  await services.scale(name, 3);
+  const service = await services.get(name);
+  await services.remove(name);
+  t.equals(service.Spec.Mode.Replicated.Replicas, 3);
+  t.end();
+});
+
 tap.test('force: true', async (t) => {
   const services = new Services();
   const name = `dummy-app${Math.floor(Math.random() * 1001)}`;

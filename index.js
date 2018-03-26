@@ -74,6 +74,7 @@ class DockerServices {
       envRemove: Joi.array(),
       labels: Joi.object(),
       labelRemove: Joi.array(),
+      replicas: Joi.number(),
       force: Joi.boolean()
     });
     if (validate.error) {
@@ -101,12 +102,22 @@ class DockerServices {
       spec.TaskTemplate.ContainerSpec.Labels = merged;
     }
 
+    if (options.replicas) {
+      spec.Mode = spec.Mode || {};
+      spec.Mode.Replicated = spec.Mode.Replicated || {};
+      spec.Mode.Replicated.Replicas = options.replicas;
+    }
+
     if (options.force) {
       const updateCount = spec.TaskTemplate.ForceUpdate || 0;
       spec.TaskTemplate.ForceUpdate = updateCount + 1;
       spec.TaskTemplate.ContainerSpec.Image = spec.TaskTemplate.ContainerSpec.Image.split('@')[0];
     }
     return spec;
+  }
+
+  scale(name, replicas) {
+     return this.adjust(name, { replicas });
   }
 
   async remove(name) {
