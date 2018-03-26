@@ -69,6 +69,24 @@ tap.test('adjust service', (t) => {
   t.end();
 });
 
+tap.test('adjust replica sizes', (t) => {
+  const services = new Services();
+  const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
+  const spec = {
+    Name: name,
+    TaskTemplate: {
+      ContainerSpec: {
+        Image: 'firstandthird/ops@sha256:b545c3b87e515299f6d6245d5f1eebcf1ed30328dca1e218fc9c6cebc75f9918',
+      }
+    }
+  };
+  const newSpec = services.adjustSpec(spec, {
+    replicas: 3
+  });
+  t.equals(newSpec.Mode.Replicated.Replicas, 3);
+  t.end();
+});
+
 tap.test('remove digest if force', (t) => {
   const services = new Services();
   const name = `dummy-app${Math.floor(Math.random() * 1001)}`;
