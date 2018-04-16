@@ -11,8 +11,10 @@ class DockerServices {
     this.dockerClient = options.dockerClient || new Docker();
     this.auth = options.auth || auth();
     this.waitDelay = 500;
+    this.monitorFor = options.monitorFor || 3000;
+    this.monitorCount = Math.floor(this.monitorFor / this.waitDelay);
     const waitTime = 1000 * 60; //1 min
-    this.maxWaitCount = Math.floor(waitTime / this.waitDelay);
+    this.maxWaitTimes = Math.floor(waitTime / this.waitDelay);
   }
 
   async get(name) {
@@ -32,7 +34,7 @@ class DockerServices {
   async create(spec, detach = false) {
     const service = await this.dockerClient.createService(this.auth, spec);
     if (!detach) {
-      await this.waitUntilRunning(spec.Name, []);
+      await this.waitUntilRunning(spec.Name, true);
     }
     return { service, spec };
   }
@@ -132,31 +134,48 @@ class DockerServices {
     return this.dockerClient.listTasks(opts);
   }
 
-  async waitUntilRunning(name, existing, times = 0, finalCheck = false) {
-    const tasks = await this.getTasks(name);
-    let finished = true;
-    tasks.forEach(tsk => {
-      if (!existing.includes(tsk.ID)) {
-        if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
-          const errMessage = tsk.Status.Err || null;
-          throw new Error(`${tsk.ID} returned status ${tsk.Status.State} with ${errMessage}`);
+  async waitUntilRunning(name, monitor = false) {
+    const self = this;
+    const existing = await this.getTasks(name);
+    let taskRunning = false;
+    let times = 0;
+    let monitoring = monitor;
+    let monitorCount = 0;
+    const checkTasks = async function() {
+      const tasks = await self.getTasks(name);
+      tasks.forEach(tsk => {
+        if (!existing.includes(tsk.ID)) {
+          if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
+            const errMessage = tsk.Status.Err || null;
+            throw new Error(`${tsk.ID} returned status ${tsk.Status.State} with ${errMessage}`);
+          }
+          if (tsk.Status.State === 'running') {
+            taskRunning = true;
+          }
         }
-        if (tsk.Status.State !== 'running') {
-          finished = false;
+      });
+
+      times++;
+      if (times > self.maxWaitTimes) {
+        throw new Error('service timed out');
+      }
+
+      if (taskRunning && !monitoring) {
+        return;
+      }
+
+      if (taskRunning && monitoring) {
+        monitorCount++;
+        if (monitorCount >= self.monitorCount) {
+          monitoring = false;
         }
       }
-    });
 
-    if (finished && finalCheck) {
-      return;
+      await wait(self.waitDelay);
+      return checkTasks();
     }
-
-    if (times > this.maxWaitTimes) {
-      throw new Error('service timed out');
-    }
-
     await wait(this.waitDelay);
-    return this.waitUntilRunning(name, existing, ++times, finished);
+    return checkTasks();
   }
 }
 

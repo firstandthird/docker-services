@@ -41,7 +41,7 @@ tap.test('create service with object', async (t) => {
     Labels: {},
     TaskTemplate: {
       ContainerSpec: {
-        Image: 'firstandthird/ops:latest',
+        Image: service.Spec.TaskTemplate.ContainerSpec.Image,
         Labels: {
           test: 'true'
         },
@@ -50,8 +50,7 @@ tap.test('create service with object', async (t) => {
           'NODE_ENV=production'
         ]
       },
-      ForceUpdate: 0,
-      Runtime: 'container'
+      ForceUpdate: 0
     },
     Mode: {
       Replicated: {
@@ -112,6 +111,35 @@ tap.test('throw if failed', async (t) => {
       TaskTemplate: {
         ContainerSpec: {
           Image: 'alpine',
+          Args: [
+            'asdfasdfasdf'
+          ]
+        }
+      }
+    });
+  } catch (e) {
+    error = true;
+    t.notEqual(e, null);
+    t.contains(e.message, 'returned status failed');
+    await services.remove(name);
+  }
+  t.equals(error, true);
+  t.end();
+});
+
+tap.test('throw if fails after start', async (t) => {
+  let error = false;
+  const services = new Services();
+  const name = `chaos-app${Math.floor(Math.random() * 1001)}`;
+  try {
+    await services.create({
+      Name: name,
+      TaskTemplate: {
+        ContainerSpec: {
+          Image: 'ecwillis/chaos',
+          Env: [
+            'CHAOS=true'
+          ],
           Args: [
             'asdfasdfasdf'
           ]
