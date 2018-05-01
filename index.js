@@ -136,7 +136,8 @@ class DockerServices {
 
   async waitUntilRunning(name, monitor = false) {
     const self = this;
-    const existing = await this.getTasks(name);
+    const existingTasks = await this.getTasks(name);
+    const existing = existingTasks.map(tsk => tsk.ID);
     let taskRunning = false;
     let times = 0;
     let monitoring = monitor;
