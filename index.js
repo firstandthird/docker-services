@@ -45,13 +45,15 @@ class DockerServices {
       this.getTasks(name),
       this.get(name)
     ]);
-    const existing = existingTasks.map(t => t.ID);
-    if (!detach) {
-      const service = await this.dockerClient.getService(name);
-    }
+
+    const service = await this.dockerClient.getService(name);
+
     spec.version = originalSpec.Version.Index;
     await service.update(spec);
-    await this.waitUntilRunning(name, existing);
+
+    if (!detach) {
+      await this.waitUntilRunning(name, true);
+    }
     return { service, spec };
   }
 
