@@ -39,14 +39,16 @@ class DockerServices {
     return { service, spec };
   }
 
-  async update(spec) {
+  async update(spec, detach = false) {
     const name = spec.Name;
     const [existingTasks, originalSpec] = await Promise.all([
       this.getTasks(name),
       this.get(name)
     ]);
     const existing = existingTasks.map(t => t.ID);
-    const service = await this.dockerClient.getService(name);
+    if (!detach) {
+      const service = await this.dockerClient.getService(name);
+    }
     spec.version = originalSpec.Version.Index;
     await service.update(spec);
     await this.waitUntilRunning(name, existing);
@@ -137,7 +139,7 @@ class DockerServices {
   async waitUntilRunning(name, monitor = false) {
     const self = this;
     const existingTasks = await this.getTasks(name);
-    const existing = existingTasks.map(tsk => tsk.ID);
+    const existing = existingTasks.filter(tsk => tsk.Status.State !== 'pending').map(tsk => tsk.ID);
     let taskRunning = false;
     let times = 0;
     let monitoring = monitor;
@@ -155,7 +157,6 @@ class DockerServices {
           }
         }
       });
-
       times++;
       if (times > self.maxWaitTimes) {
         throw new Error('service timed out');
