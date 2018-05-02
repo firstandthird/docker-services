@@ -148,8 +148,10 @@ class DockerServices {
     let monitorCount = 0;
     const checkTasks = async function() {
       const tasks = await self.getTasks(name);
+      let foundTasks = false;
       tasks.forEach(tsk => {
         if (!existing.includes(tsk.ID)) {
+          foundTasks = true;
           if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
             const errMessage = tsk.Status.Err || null;
             throw new Error(`${tsk.ID} returned status ${tsk.Status.State} with ${errMessage}`);
@@ -159,6 +161,10 @@ class DockerServices {
           }
         }
       });
+      if (!foundTasks) {
+        // fallback for edge case
+        return;
+      }
       times++;
       if (times > self.maxWaitTimes) {
         throw new Error('service timed out');
