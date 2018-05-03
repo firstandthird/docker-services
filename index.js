@@ -13,8 +13,12 @@ class DockerServices {
     this.waitDelay = 500;
     this.monitorFor = options.monitorFor || 3000;
     this.monitorCount = Math.floor(this.monitorFor / this.waitDelay);
-    const waitTime = 1000 * 60; //1 min
+    const waitTime = options.waitTime || (1000 * 60); //1 min
     this.maxWaitTimes = Math.floor(waitTime / this.waitDelay);
+
+    if (options.listener) {
+      this.listener = options.listener;
+    }
   }
 
   async get(name) {
@@ -141,36 +145,43 @@ class DockerServices {
   async waitUntilRunning(name, monitor = false) {
     const self = this;
     const existingTasks = await this.getTasks(name);
-    const existing = existingTasks.filter(tsk => tsk.Status.State !== 'pending').map(tsk => tsk.ID);
+    const existing = existingTasks.filter(tsk => !['pending', 'new'].includes(tsk.Status.State)).map(tsk => tsk.ID);
     let taskRunning = false;
     let times = 0;
     let monitoring = monitor;
     let monitorCount = 0;
+    self.emit('debug', { message: `Starting monitoring for ${name}`, monitorCount: self.monitorCount, waitDelay: self.waitDelay, maxWaitTimes: self.maxWaitTimes });
     const checkTasks = async function() {
       const tasks = await self.getTasks(name);
       let foundTasks = false;
       tasks.forEach(tsk => {
         if (!existing.includes(tsk.ID)) {
           foundTasks = true;
+          self.emit('debug', { message: 'Check Task', taskName: name, id: tsk.ID, status: tsk.Status.State, checkCount: times, monitorCount: monitorCount });
           if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
             const errMessage = tsk.Status.Err || null;
             throw new Error(`${tsk.ID} returned status ${tsk.Status.State} with ${errMessage}`);
           }
           if (tsk.Status.State === 'running') {
+            if (!taskRunning) {
+              self.emit('debug', { message: 'Task Running!', taskName: name });
+            }
             taskRunning = true;
           }
         }
       });
       if (!foundTasks) {
         // fallback for edge case
+        self.emit('debug', { message: 'No tasks found during check.', taskName: name, existingTasks: existingTasks.length, tasks: tasks.length });
         return;
       }
       times++;
-      if (times > self.maxWaitTimes) {
+      if (times > self.maxWaitTimes && !taskRunning) {
         throw new Error('service timed out');
       }
 
       if (taskRunning && !monitoring) {
+        self.emit('debug', { message: 'Done monitoring tasks.', taskName: name });
         return;
       }
 
@@ -186,6 +197,12 @@ class DockerServices {
     }
     await wait(this.waitDelay);
     return checkTasks();
+  }
+
+  emit(action, data) {
+    if (this.listener) {
+      this.listener(action, data);
+    }
   }
 }
 
