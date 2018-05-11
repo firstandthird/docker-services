@@ -10,7 +10,7 @@ class DockerServices {
   constructor(options = {}) {
     this.dockerClient = options.dockerClient || new Docker();
     this.auth = options.auth || auth();
-    this.waitDelay = 500;
+    this.waitDelay = options.waitDelay || 2000;
     this.monitorFor = options.monitorFor || 3000;
     this.monitorCount = Math.floor(this.monitorFor / this.waitDelay);
     const waitTime = options.waitTime || (1000 * 60); //1 min
@@ -45,10 +45,12 @@ class DockerServices {
 
   async update(spec, detach = false) {
     const name = spec.Name;
-    const [existingTasks, originalSpec] = await Promise.all([
+    const promResults = await Promise.all([
       this.getTasks(name),
       this.get(name)
     ]);
+
+    const originalSpec = promResults[1];
 
     const service = await this.dockerClient.getService(name);
 
@@ -127,7 +129,7 @@ class DockerServices {
   }
 
   scale(name, replicas) {
-     return this.adjust(name, { replicas });
+    return this.adjust(name, { replicas });
   }
 
   async remove(name) {
@@ -157,7 +159,7 @@ class DockerServices {
       tasks.forEach(tsk => {
         if (!existing.includes(tsk.ID)) {
           foundTasks = true;
-          self.emit('debug', { message: 'Check Task', taskName: name, id: tsk.ID, status: tsk.Status.State, checkCount: times, monitorCount: monitorCount });
+          self.emit('debug', { message: 'Check Task', taskName: name, id: tsk.ID, status: tsk.Status.State, checkCount: times, monitorCount });
           if (tsk.Status.State === 'failed' || tsk.Status.State === 'rejected') {
             const errMessage = tsk.Status.Err || null;
             throw new Error(`${tsk.ID} returned status ${tsk.Status.State} with ${errMessage}`);
@@ -194,7 +196,7 @@ class DockerServices {
 
       await wait(self.waitDelay);
       return checkTasks();
-    }
+    };
     await wait(this.waitDelay);
     return checkTasks();
   }
