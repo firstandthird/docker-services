@@ -42,6 +42,7 @@ tap.test('create service with object', async (t) => {
     TaskTemplate: {
       ContainerSpec: {
         Image: service.Spec.TaskTemplate.ContainerSpec.Image,
+        Isolation: 'default',
         Labels: {
           test: 'true'
         },
@@ -50,7 +51,8 @@ tap.test('create service with object', async (t) => {
           'NODE_ENV=production'
         ]
       },
-      ForceUpdate: 0
+      ForceUpdate: 0,
+      Runtime: 'container'
     },
     Mode: {
       Replicated: {
@@ -71,7 +73,7 @@ tap.test('throw if takes too long', async (t) => {
       Name: name,
       TaskTemplate: {
         ContainerSpec: {
-          Image: 'firstandthird/ops:latest',
+          Image: 'hello-world',
           Env: [
             'PORT=8080',
             'NODE_ENV=production'
