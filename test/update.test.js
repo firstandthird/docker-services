@@ -39,6 +39,7 @@ tap.test('update service', async (t) => {
     TaskTemplate: {
       ContainerSpec: {
         Image: 'firstandthird/ops',
+        Isolation: 'default',
         Env: [
           'PORT=8080'
         ]
