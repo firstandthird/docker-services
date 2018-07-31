@@ -22,8 +22,13 @@ class DockerServices {
   }
 
   async pull(name) {
-    const pull = await this.dockerClient.pull(name, this.auth);
+    const pull = await this.dockerClient.pull(name, { authconfig: this.auth });
     return pull;
+  }
+
+  async list() {
+    const list = await this.dockerClient.listImages();
+    return list;
   }
 
   async get(name) {
